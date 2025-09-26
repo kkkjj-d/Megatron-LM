@@ -13,12 +13,30 @@ class ModelType(enum.Enum):
     """
 
     encoder_or_decoder = 1
-    encoder_and_decoder = 2
+
+    @property
+    def encoder_and_decoder(self):
+        """Deprecated property - use encoder_or_decoder instead."""
+        raise ValueError(
+            "ModelType.encoder_and_decoder is deprecated. Please use ModelType.encoder_or_decoder "
+            "instead."
+        )
 
 
-# class LayerType(enum.Enum):
-#     encoder = 1
-#     decoder = 2
+class LayerType(enum.Enum):
+    """Layer type
+    embedding: embedding layer
+    loss: loss layer
+    encoder: encoder layer, not implemented yet, expect to be used in MLLM models
+    decoder: decoder layer
+    mtp: multi-token prediction layer, not implemented yet
+    """
+
+    embedding = 1
+    loss = 2
+    encoder = 3
+    decoder = 4
+    mtp = 5
 
 
 class AttnType(enum.Enum):
@@ -36,6 +54,7 @@ class AttnMaskType(enum.Enum):
     no_mask = 3  # only used for TE
     padding_causal = 4  # only used for thd attention
     arbitrary = 5
+    causal_bottom_right = 6  # only used for TE
 
 
 class AttnBackend(enum.Enum):

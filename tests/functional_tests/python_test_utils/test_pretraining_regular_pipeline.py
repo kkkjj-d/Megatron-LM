@@ -20,6 +20,10 @@ CHECK_THRESHOLDS = {
         common.DeterministicTest(),
         common.ApproximateTest(atol_func=common.approximate_threshold(rtol=0.05), rtol=0),
     ],
+    "mtp_1 loss": [
+        common.DeterministicTest(),
+        common.ApproximateTest(atol_func=common.approximate_threshold(rtol=0.05), rtol=0),
+    ],
     "num-zeros": [
         common.DeterministicTest(),
         common.ApproximateTest(atol_func=common.approximate_threshold(rtol=0.20), rtol=0),
@@ -38,7 +42,7 @@ CHECK_THRESHOLDS = {
 def test_regular_pipeline(
     compare_approximate_results: bool,
     golden_values: Dict[str, common.GoldenValueMetric],
-    tensorboard_logs: Dict[str, common.GoldenValueMetric],
+    actual_values: Dict[str, common.GoldenValueMetric],
     model_config_path: str,
     checks: Optional[Dict[str, List[common.Test]]] = None,
 ):
@@ -71,6 +75,6 @@ def test_regular_pipeline(
     common.pipeline(
         compare_approximate_results=compare_approximate_results,
         golden_values=golden_values,
-        tensorboard_logs=tensorboard_logs,
+        actual_values=actual_values,
         checks=checks,
     )

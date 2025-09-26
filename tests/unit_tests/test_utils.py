@@ -61,8 +61,9 @@ def test_experimental_cls_static():
 
 
 def test_experimental_cls_exception_init():
-    with patch.object(config, 'ENABLE_EXPERIMENTAL', False), pytest.raises(
-        util.ExperimentalNotEnabledError
+    with (
+        patch.object(config, 'ENABLE_EXPERIMENTAL', False),
+        pytest.raises(util.ExperimentalNotEnabledError),
     ):
         a = A()
         assert a.some_method() == success_string
@@ -70,8 +71,9 @@ def test_experimental_cls_exception_init():
 
 
 def test_experimental_cls_exception_static():
-    with patch.object(config, 'ENABLE_EXPERIMENTAL', False), pytest.raises(
-        util.ExperimentalNotEnabledError
+    with (
+        patch.object(config, 'ENABLE_EXPERIMENTAL', False),
+        pytest.raises(util.ExperimentalNotEnabledError),
     ):
         assert A.some_static_method() == success_string
 
@@ -138,17 +140,17 @@ def test_nvtx_range(msg, suffix):
         util.nvtx_range_pop(msg, suffix)
 
     # Test with NVTX disabled
-    with patch.dict('os.environ', {'MEGATRON_NVTX_ENABLED': '0'}):
-        _call_nvtx_range()
-        assert execution_tracker['ranges']
+    util.configure_nvtx_profiling(False)
+    _call_nvtx_range()
+    assert execution_tracker['ranges']
 
     # Reset tracker
     execution_tracker['ranges'] = False
 
     # Test with NVTX enabled
-    with patch.dict('os.environ', {'MEGATRON_NVTX_ENABLED': '1'}):
-        _call_nvtx_range()
-        assert execution_tracker['ranges']
+    util.configure_nvtx_profiling(True)
+    _call_nvtx_range()
+    assert execution_tracker['ranges']
 
 
 def test_nvtx_decorator():
@@ -165,19 +167,19 @@ def test_nvtx_decorator():
         execution_tracker['decorated_with_message'] = True
 
     # Test with NVTX disabled
-    with patch.dict('os.environ', {'MEGATRON_NVTX_ENABLED': '0'}):
-        nvtx_decorated_function()
-        nvtx_decorated_function_with_message()
-        assert all(execution_tracker.values())
+    util.configure_nvtx_profiling(False)
+    nvtx_decorated_function()
+    nvtx_decorated_function_with_message()
+    assert all(execution_tracker.values())
 
     # Reset tracker
     execution_tracker = {'decorated': False, 'decorated_with_message': False}
 
     # Test with NVTX enabled
-    with patch.dict('os.environ', {'MEGATRON_NVTX_ENABLED': '1'}):
-        nvtx_decorated_function()
-        nvtx_decorated_function_with_message()
-        assert all(execution_tracker.values())
+    util.configure_nvtx_profiling(True)
+    nvtx_decorated_function()
+    nvtx_decorated_function_with_message()
+    assert all(execution_tracker.values())
 
 
 @pytest.mark.flaky_in_dev
@@ -230,6 +232,7 @@ def test_cross_check_param_hashes_across_dp_replicas():
 
 @pytest.mark.parametrize("use_distributed_optimizer", [False, True])
 @pytest.mark.flaky_in_dev
+@pytest.mark.internal
 def test_param_norm(use_distributed_optimizer: bool):
     world = int(os.getenv('WORLD_SIZE', '1'))
     rank = int(os.getenv('RANK', '0'))

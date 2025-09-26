@@ -20,7 +20,7 @@ from megatron.core.enums import Fp8Recipe
 from megatron.core.extensions.transformer_engine import TENorm
 from megatron.core.fp8_utils import get_fp8_context
 from megatron.core.inference.contexts import BaseInferenceContext
-from megatron.core.process_groups_config import ModelCommProcessGroups
+from megatron.core.process_groups_config import ProcessGroupCollection
 from megatron.core.ssm.mamba_hybrid_layer_allocation import Symbols as LayerSymbols
 from megatron.core.ssm.mamba_hybrid_layer_allocation import allocate_layers
 from megatron.core.tensor_parallel import get_cuda_rng_tracker
@@ -111,7 +111,7 @@ class MambaStack(MegatronModule):
             Defaults to True.
         device (optional): the device to use. Defaults to None.
         dtype (optional): the data type to use. Defaults to None.
-        model_comm_pgs (ModelCommProcessGroups): the required model communication
+        pg_collection (ProcessGroupCollection): the required model communication
             process groups to use.
     """
 
@@ -128,7 +128,7 @@ class MambaStack(MegatronModule):
         post_process: bool = True,
         device=None,
         dtype=None,
-        model_comm_pgs: ModelCommProcessGroups = None,
+        pg_collection: ProcessGroupCollection = None,
     ) -> None:
         super().__init__(config=config)
         self.residual_in_fp32 = residual_in_fp32
@@ -136,9 +136,9 @@ class MambaStack(MegatronModule):
         self.post_layer_norm = post_layer_norm
         self.post_process = post_process
 
-        assert model_comm_pgs is not None, "model_comm_pgs must be provided for MambaStack"
+        assert pg_collection is not None, "pg_collection must be provided for MambaStack"
 
-        self.pp_group = model_comm_pgs.pp
+        self.pp_group = pg_collection.pp
 
         # Required for pipeline parallel schedules
         self.input_tensor = None
@@ -170,7 +170,7 @@ class MambaStack(MegatronModule):
                         config=self.config,
                         residual_in_fp32=residual_in_fp32,
                         layer_number=i + 1 + pp_layer_offset,
-                        tp_group=model_comm_pgs.tp,
+                        pg_collection=pg_collection,
                     )
                 elif layer_type == LayerSymbols.ATTENTION:
                     # Transformer layers apply their own pp_layer_offset
@@ -178,7 +178,7 @@ class MambaStack(MegatronModule):
                         submodules.attention_layer,
                         config=self.config,
                         layer_number=i + 1,
-                        model_comm_pgs=model_comm_pgs,
+                        pg_collection=pg_collection,
                     )
                 elif layer_type == LayerSymbols.MLP:
                     # Transformer layers apply their own pp_layer_offset
@@ -186,7 +186,7 @@ class MambaStack(MegatronModule):
                         submodules.mlp_layer,
                         config=self.config,
                         layer_number=i + 1,
-                        model_comm_pgs=model_comm_pgs,
+                        pg_collection=pg_collection,
                     )
                 else:
                     assert False, "unexpected layer_type"
@@ -287,10 +287,6 @@ class MambaStack(MegatronModule):
         if isinstance(hidden_states, WrappedTensor):
             hidden_states = hidden_states.unwrap()
 
-        # Update the inference parameters with the current batch size in case it is variable
-        if inference_context and not self.training:
-            inference_context.current_batch_size = hidden_states.size(1)
-
         if inference_context:
             assert (
                 inference_context.is_static_batching()
@@ -302,13 +298,17 @@ class MambaStack(MegatronModule):
             inference_context.seqlen_offset = inference_context.sequence_len_offset
 
         if (
-            (self.config.enable_cuda_graph or self.config.flash_decode)
+            (
+                (self.config.enable_cuda_graph and self.config.cuda_graph_scope != "full_iteration")
+                or self.config.flash_decode
+            )
             and inference_context
             and inference_context.is_static_batching()
             and not self.training
         ):
+            current_batch_size = hidden_states.shape[1]
             sequence_len_offset = torch.tensor(
-                [inference_context.sequence_len_offset] * inference_context.current_batch_size,
+                [inference_context.sequence_len_offset] * current_batch_size,
                 dtype=torch.int32,
                 device='cuda',
             )
