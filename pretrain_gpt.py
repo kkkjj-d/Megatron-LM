@@ -169,7 +169,9 @@ def model_provider(
             mtp_block_spec=mtp_block_spec,
             vp_stage=vp_stage,
         )
-
+        if int(os.environ["RANK"]) == 0:
+            print(model)
+            # print(model.param_groups())
     return model
 
 

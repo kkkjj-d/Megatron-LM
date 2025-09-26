@@ -25,6 +25,8 @@ from megatron.core.datasets.bert_dataset import BERTMaskedWordPieceDataset, BERT
 from megatron.core.datasets.utils import get_blend_from_list
 from megatron.core import mpu, tensor_parallel
 
+import sys
+sys.path.append("/opt/miniconda/envs/torch/lib/python3.11/site-packages")
 
 def model_provider(pre_process=True, post_process=True, vp_stage=None):
     """Build the model."""

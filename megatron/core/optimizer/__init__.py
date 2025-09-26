@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import torch
 from torch.optim import SGD as CPUSGD
 from torch.optim import AdamW as CPUAdam
-
+from .muon import Muon
 try:
     from transformer_engine.pytorch.optimizers import FusedAdam as Adam
     from transformer_engine.pytorch.optimizers import FusedSGD as SGD
@@ -362,13 +362,19 @@ def _get_megatron_optimizer_based_on_param_groups(
                                 opt.initialize_state(p)
 
         elif config.optimizer == 'sgd':
-            optimizer = SGD(
+            optimizer = SwGD(
                 param_groups,
                 lr=config.lr,
                 weight_decay=config.weight_decay,
                 momentum=config.sgd_momentum,
             )
             init_state_fn = None
+        
+        # todo:
+        #     add Muon optimizer, including add original Muon(add the parse of param_group), origin distributed muon(just all-gather gradient)
+        
+        # elif config.optimzier == 'muon':
+        #     optimizer = Muon()
         else:
             raise Exception('{} optimizer is not supported.'.format(config.optimizer))
     else:

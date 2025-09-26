@@ -775,6 +775,7 @@ def validate_args(args, defaults={}):
             print('Persistent fused layer norm kernel is supported from '
                   'pytorch v1.11 (nvidia pytorch container paired with v1.11). '
                   'Defaulting to no_persist_layer_norm=True')
+    args.no_persist_layer_norm = True
 
     # Activation recomputing.
     if args.distribute_saved_activations:
